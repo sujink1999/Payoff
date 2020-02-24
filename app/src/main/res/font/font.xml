@@ -7,5 +7,23 @@
     <font
         android:fontWeight="400"
         android:font="@font/futura_bold" />
+    <font
+        android:fontWeight="400"
+        android:font="@font/black" />
+    <font
+        android:fontWeight="400"
+        android:font="@font/bold" />
+    <font
+        android:fontWeight="400"
+        android:font="@font/extralight" />
+    <font
+        android:fontWeight="400"
+        android:font="@font/medium" />
+    <font
+        android:fontWeight="400"
+        android:font="@font/semibold" />
+    <font
+        android:fontWeight="400"
+        android:font="@font/thin" />
 
 </font-family>

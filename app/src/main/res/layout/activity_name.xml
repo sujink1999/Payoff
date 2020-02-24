@@ -62,7 +62,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#ffffff"
-            android:text="Hop Me"
+            android:text="Login"
             android:fontFamily="@font/futura_bold"
             android:textSize="@dimen/_15sdp"
             android:layout_gravity="center"

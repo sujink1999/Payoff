@@ -2,6 +2,7 @@ package com.sujin.payoff;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
@@ -17,7 +18,11 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.nearby.Nearby;
@@ -59,18 +64,29 @@ public class MainActivity extends AppCompatActivity {
     String myName = "name";
     String connected;
     boolean isSender = false;
-    Button send;
+    ImageView send;
     Gson gsonConverter = new Gson();
     List<String> endpoints = new ArrayList<>();
     List<String> names = new ArrayList<>();
     List<String> availableBalance = new ArrayList<>();
     ListView list;
-    ArrayAdapter<String> arrayAdapter;
+    PeopleAdapter peopleAdapter;
     Retrofit retrofit;
     Gson gson;
     com.sujin.payoff.Api service;
     CreateTransaction resp = null;
     int jValue = -1;
+    TextView btc;
+    EditText enter_amount;
+    CardView amountCard;
+    boolean transSuccess =false;
+    int totalBalance= 0;
+    LinearLayout processing;
+    TextView sendtext;
+    String gendpoint;
+    boolean connectSuccess = false;
+    boolean withoutInternet = false;
+    TextView textName;
 
     //LOCAL
     Initialization customerDetails;
@@ -175,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
 
                 endpoints.add(s);
                 names.add(discoveredEndpointInfo.getEndpointName());
-                arrayAdapter.notifyDataSetChanged();
+                peopleAdapter.notifyDataSetChanged();
 
             }
 
@@ -199,11 +215,27 @@ public class MainActivity extends AppCompatActivity {
                     if(resp!=null) {
                         String json = gsonConverter.toJson(resp);
 
+                        if(s.equals(gendpoint))
+                        {
+                            connectSuccess = true;
+                        }
+
                         Payload bytesPayload = Payload.fromBytes(json.getBytes());
                         if (jValue != -1) {
                             Nearby.getConnectionsClient(getApplicationContext()).sendPayload(endpoints.get(jValue), bytesPayload);
 
                         }
+                        if(transSuccess)
+                        {
+                            Nearby.getConnectionsClient(getApplicationContext()).sendPayload(gendpoint, bytesPayload);
+                            processing.setVisibility(View.GONE);
+                            amountCard.setVisibility(View.VISIBLE);
+                            send.setVisibility(View.VISIBLE);
+                            sendtext.setVisibility(View.VISIBLE);
+                            enter_amount.setText("");
+
+                        }
+
                     }
                 Toast.makeText(MainActivity.this, "Connected", Toast.LENGTH_SHORT).show();
                 break;
@@ -233,10 +265,17 @@ public class MainActivity extends AppCompatActivity {
                 // check for k2 encryption
                 if(id.equals(transaction.getTo()))
                 {
+                    Toast.makeText(MainActivity.this, "Money Received", Toast.LENGTH_SHORT).show();
                     for(int i =0 ; i<transaction.getAmount().size();i++)
                     {
                         availableBalance.add(transaction.getAmount().get(i));
                     }
+                    totalBalance+=transaction.getValue();
+                    btc.setText(Integer.toString(totalBalance)+" BTC");
+                    processing.setVisibility(View.GONE);
+                    amountCard.setVisibility(View.VISIBLE);
+                    send.setVisibility(View.VISIBLE);
+                    sendtext.setVisibility(View.VISIBLE);
                     //increase the wallet amount
                 }else if(id.equals(transaction.getFrom()))
                 {
@@ -244,12 +283,15 @@ public class MainActivity extends AppCompatActivity {
                     String json = gsonConverter.toJson(transaction);
                     Payload bytesPayload = Payload.fromBytes(json.getBytes());
                     Nearby.getConnectionsClient(getApplicationContext()).sendPayload(receiver, bytesPayload);
+                    totalBalance-=transaction.getValue();
+                    btc.setText(Integer.toString(totalBalance)+" BTC");
 
 
                 }else
                 {
                     //hello
                     Toast.makeText(MainActivity.this, "got a message which is not mine", Toast.LENGTH_SHORT).show();
+                    withoutInternet = true;
                     createTransaction(transaction.getAmount(),transaction.getFrom(),transaction.getTo(),transaction.getValue(),transaction.getTime(),endpointId);
                 }
             }
@@ -266,9 +308,15 @@ public class MainActivity extends AppCompatActivity {
     {
         send = findViewById(R.id.send);
         list = findViewById(R.id.list_view);
+        btc = findViewById(R.id.btc);
+        enter_amount = findViewById(R.id.enter_amount);
+        amountCard = findViewById(R.id.amount_card);
+        processing = findViewById(R.id.processing);
+        sendtext = findViewById(R.id.sendtext);
+        textName = findViewById(R.id.name);
 
-        arrayAdapter = new ArrayAdapter<String>(this,android.R.layout.simple_list_item_1 ,names);
-        list.setAdapter(arrayAdapter);
+        peopleAdapter = new PeopleAdapter(getApplicationContext(),0,names);
+        list.setAdapter(peopleAdapter);
 
     }
 
@@ -279,6 +327,11 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 stopAdvertising();
                 startDiscovery();
+                send.setVisibility(View.GONE);
+                sendtext.setVisibility(View.GONE);
+                amountCard.setVisibility(View.GONE);
+                list.setVisibility(View.VISIBLE);
+                isSender=true;
 
             }
         });
@@ -293,8 +346,9 @@ public class MainActivity extends AppCompatActivity {
                     //broadcast to everyone else
                     Log.e("path","no internet");
 
-                    int value = 20;
+
                     List<String> amount = new ArrayList<>();
+                    int value = Integer.parseInt(enter_amount.getText().toString());
                     for(int j=0; j<value/10 ; j++)
                     {
                         amount.add(availableBalance.get(availableBalance.size()-1));
@@ -318,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
                 }else
                 {
                     Log.e("path","with internet");
-                    int value = 20;
+                    int value = Integer.parseInt(enter_amount.getText().toString());
                     List<String> amount = new ArrayList<>();
                     for(int j=0; j<value/10 ; j++)
                     {
@@ -330,6 +384,9 @@ public class MainActivity extends AppCompatActivity {
                     createTransaction(amount,id,names.get(i),value,currentTime.toString(), endpoints.get(i));
 
                 }
+                list.setVisibility(View.GONE);
+                processing.setVisibility(View.VISIBLE);
+
 
             }
         });
@@ -341,7 +398,22 @@ public class MainActivity extends AppCompatActivity {
         if(transactionResponse.getFrom()!=null) {
             String json = gsonConverter.toJson(transactionResponse);
             Payload bytesPayload = Payload.fromBytes(json.getBytes());
-            Nearby.getConnectionsClient(getApplicationContext()).sendPayload(endpoint, bytesPayload);
+            Toast.makeText(MainActivity.this, "Transaction Successful", Toast.LENGTH_SHORT).show();
+
+            if(withoutInternet)
+            {
+                Nearby.getConnectionsClient(getApplicationContext()).sendPayload(gendpoint, bytesPayload);
+            }
+            if(connectSuccess)
+            {
+                Nearby.getConnectionsClient(getApplicationContext()).sendPayload(gendpoint, bytesPayload);
+            }
+            if(isSender)
+            {
+                transSuccess = true;
+                totalBalance-=transactionResponse.getValue();
+                btc.setText(Integer.toString(totalBalance)+" BTC");
+            }
         }else
         {
             Toast.makeText(MainActivity.this, "Transaction Failed", Toast.LENGTH_SHORT).show();
@@ -444,6 +516,7 @@ public class MainActivity extends AppCompatActivity {
                     CreateTransaction  resT = response.body();
                     Log.e("REQ-SUCCESS", resT.getFrom());
                     resp = resT;
+                    gendpoint = endpoint;
                     responseCheckForCreateTransaction(resT,endpoint);
                 }
 
@@ -495,9 +568,14 @@ public class MainActivity extends AppCompatActivity {
                     Initialization res = response.body();
                     customerDetails = res;
                     id = res.getAddress();
+                    textName.setText(id);
                     availableBalance = res.getAmount();
                     Log.e("listSize",Integer.toString(res.getAmount().size()));
                     send.setVisibility(View.VISIBLE);
+                    sendtext.setVisibility(View.VISIBLE);
+                    amountCard.setVisibility(View.VISIBLE);
+                    totalBalance = res.getEthers();
+                    btc.setText(res.getEthers()+" BTC");
                     startAdvertising();
                     Log.e("REQ-SUCCESS", String.valueOf(res.getAddress()));
                 }
